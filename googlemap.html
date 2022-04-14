@@ -1,0 +1,236 @@
+<html> 
+<head> 
+   <script type="text/javascript" 
+
+   src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCpZs1POUx16C6MECPtz_vR43cjQTjXFPg">
+       
+   </script>
+   <title>Metacities</title>
+
+   <style>
+        .buypanel p {
+        text-decoration: none;
+        font-size: 23px;
+        color: #560eff;
+        margin: 5px 10px;
+        }
+
+        /* When you mouse over the navigation links, change their color */
+        .buypanel a:hover {
+        color: #f1f1f1;
+        }
+
+        button {
+        /* background-color: #4CAF50;  */
+        background-color:#b205c9;
+        border: none;
+        color: white;
+        padding: 15px 32px;
+        margin-top: 10px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 16px;
+        }
+
+        button:hover {
+        
+        background-color: #00154b;
+        opacity: 0.7;
+        /* background-color: #3e8e41 */
+
+        }
+
+        button:active {
+        background-color: #00154b;
+        opacity: 0.7;
+        /* background-color: #621FC6; */
+        box-shadow: 0 5px #666;
+        transform: translateY(4px);
+        }
+
+        
+        #floating-panel {
+        position: absolute;
+        top: 10px;
+        left: 25%;
+        z-index: 5;
+        background-color: rgb(163, 0, 204);
+        padding: 5px;
+        border: 1px solid #999;
+        text-align: center;
+        font-family: "Roboto", "sans-serif";
+        line-height: 30px;
+        padding-left: 10px;
+        }
+    </style>
+   </head>
+    <body style="height:100%;margin:0"> 
+
+        <div id="map-canvas" style="width: 100%; height:100%;"></div> 
+        <div class="buypanel">
+            <p>Tiles Selected: <span style="color:rgb(0, 0, 0);" id="tiles">0</span> </p>
+            <p>Price: <span style="color:rgb(0, 0, 0);" id="price">0</span> USDT</p>
+            <button id="btnBuy">Buy Now</button>
+        </div>
+        <script type="text/javascript"> 
+
+var map;
+
+var qtrArray = [];
+var linesArray = [];
+var Startlatlng;
+var llOffset = 0.00040666666667;
+var count = 0;
+var price = 0;
+var drawGridBox = false;
+var gridline;
+var polylinesquare;
+var latPolylines = [];
+var lngPolylines = [];
+var bounds = new google.maps.LatLngBounds();
+var update_timeout = null;
+
+function initialize() {
+    map = new google.maps.Map(document.getElementById('map-canvas'), {
+        center: new google.maps.LatLng(13.71, 100.53),
+        zoom: 15,
+        streetViewControl: true,
+        mapTypeId: google.maps.MapTypeId.HYBRID,
+        scaleControl: true, 
+        disableDoubleClickZoom: true
+    });
+
+
+    var oLat = 13.71;
+    var oLon = 100.53;
+   
+    var gridlocator = [new google.maps.LatLng(oLat, oLon)];
+
+    google.maps.event.addListener(map, 'click', function (event) {
+        update_timeout = setTimeout(function(){
+            createGridBox(event.latLng);
+            drawGridBox =true;
+        }, 200); 
+        
+    });
+  
+     google.maps.event.addListener(map, 'rightclick', function(event) {
+        polyline.setMap(null);
+    });
+   
+    google.maps.event.addListener(map, 'bounds_changed', function () {
+        createGridLines(map.getBounds());
+    });
+}
+google.maps.event.addDomListener(window, 'load', initialize);
+
+
+function ClearLastGrid() {
+    polyline.setMap(null);
+}
+
+function createGridLines(bounds) {
+    for (var i=0; i< latPolylines.length; i++) {
+            latPolylines[i].setMap(null);
+    }
+    latPolylines = [];
+    for (var i=0; i< lngPolylines.length; i++) {
+            lngPolylines[i].setMap(null);
+    }
+    lngPolylines = [];
+    if (map.getZoom() <= 5); 
+    var north = bounds.getNorthEast().lat();
+    var east = bounds.getNorthEast().lng();
+    var south = bounds.getSouthWest().lat();
+    var west = bounds.getSouthWest().lng();
+
+    var topLat = Math.ceil(north / llOffset) * llOffset;
+    var rightLong = Math.ceil(east / llOffset) * llOffset;
+
+    var bottomLat = Math.floor(south / llOffset) * llOffset;
+    var leftLong = Math.floor(west / llOffset) * llOffset;
+
+    for (var latitude = bottomLat; latitude <= topLat; latitude += llOffset) {
+        latPolylines.push(new google.maps.Polygon({
+            path: [
+            new google.maps.LatLng(latitude, leftLong),
+            new google.maps.LatLng(latitude, rightLong)],
+            map: map,
+            geodesic: true,
+            strokeColor: '#00ffff',
+            strokeOpacity: 0.5,
+            strokeWeight: 1
+        }));
+    }
+    for (var longitude = leftLong; longitude <= rightLong; longitude += llOffset) {
+        lngPolylines.push(new google.maps.Polygon({
+            path: [
+            new google.maps.LatLng(topLat, longitude),
+            new google.maps.LatLng(bottomLat, longitude)],
+            map: map,
+            geodesic: true,
+            strokeColor: '#00ffff',
+            strokeOpacity: 0.5,
+            strokeWeight: 1
+        }));
+    }
+}
+
+function createGridBox(point) {
+
+    var bottomLeftLat = Math.floor(point.lat() / llOffset) * llOffset;
+    var bottomLeftLong = Math.floor(point.lng() / llOffset) * llOffset;
+
+    var gridLineSquare = [
+    new google.maps.LatLng(bottomLeftLat, bottomLeftLong), //lwr left
+    new google.maps.LatLng(bottomLeftLat, bottomLeftLong + llOffset), //lwr right
+    new google.maps.LatLng(bottomLeftLat + llOffset, bottomLeftLong + llOffset), //upr right
+    new google.maps.LatLng(bottomLeftLat + llOffset, bottomLeftLong),
+    new google.maps.LatLng(bottomLeftLat, bottomLeftLong)];
+
+
+for (i = 0; i < gridLineSquare.length; i++) {
+     bounds.extend(gridLineSquare[i]);
+ }
+
+
+        polyline = new google.maps.Polygon({
+            path: gridLineSquare,
+            geodesic: true,
+            strokeColor: '#00DB00',
+            strokeOpacity: 0.5,
+            strokeWeight: 3,
+            fillColor: 'green',
+            fillOpacity: 0.2 //Increase this to make the green background darker
+        });
+
+        count = count+1;
+        document.getElementById("tiles").innerHTML = count;
+        price = price + 0.5;
+        document.getElementById("price").innerHTML = price;
+
+        google.maps.event.addListener(polyline, 'rightclick', function(event) {
+            polyline.setMap(null);
+            if (count!=0)
+            {
+                count = count-1;
+                document.getElementById("tiles").innerHTML = count;
+                price = price - 0.5;
+                document.getElementById("price").innerHTML = price;
+            }
+            else
+            {
+                document.getElementById("tiles").innerHTML = price;
+            }
+        });
+
+        polyline.setMap(map);
+        qtrArray.push(polyline);      
+}
+
+        
+        </script> 
+    </body> 
+
+</html>
